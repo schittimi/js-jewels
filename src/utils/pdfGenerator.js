@@ -36,6 +36,27 @@ const blobToBase64 = (blob) => {
   });
 };
 
+// Format number with commas for Indian numbering system (without toLocaleString to avoid PDF encoding issues)
+const formatIndianNumber = (num) => {
+  const numStr = Math.abs(num).toString();
+  if (numStr.length <= 3) return numStr;
+  
+  let result = '';
+  let count = 0;
+  
+  for (let i = numStr.length - 1; i >= 0; i--) {
+    result = numStr[i] + result;
+    count++;
+    if (count === 3 && i > 0) {
+      result = ',' + result;
+    } else if (count > 3 && (count - 3) % 2 === 0 && i > 0) {
+      result = ',' + result;
+    }
+  }
+  
+  return result;
+};
+
 /**
  * Generate a luxury PDF invoice
  * Purple + Gold theme with logo and Instagram QR
@@ -68,14 +89,18 @@ export const generateInvoicePDF = (invoice) => {
   doc.setFillColor(138, 43, 78); // #8A2B4E
   doc.rect(0, 45, pageWidth, 5, 'F');
 
-  // Add logo if available (smaller, circular appearance)
+  // Add logo if available (75% of banner height = 37.5mm)
+  const bannerHeight = 50;
+  const imageSize = bannerHeight * 0.75; // 37.5mm
+  const imageY = (bannerHeight - imageSize) / 2; // Center vertically
+  
   if (logoBase64) {
     try {
       // Draw white circle background for logo
       doc.setFillColor(255, 255, 255);
-      doc.circle(25, 25, 14, 'F');
-      // Circular logo on the left - sized to match preview
-      doc.addImage(logoBase64, 'PNG', 11, 11, 28, 28);
+      doc.circle(margin + imageSize / 2, imageY + imageSize / 2, imageSize / 2, 'F');
+      // Circular logo on the left - 75% of banner height
+      doc.addImage(logoBase64, 'PNG', margin, imageY, imageSize, imageSize);
     } catch (e) {
       console.warn('Could not add logo to PDF');
     }
@@ -107,15 +132,16 @@ export const generateInvoicePDF = (invoice) => {
   doc.setTextColor(...gold);
   doc.text('INVOICE', textCenterX, 38, { align: 'center' });
 
-  // Add Instagram QR code if available (smaller to match preview)
+  // Add Instagram QR code if available (75% of banner height = 37.5mm)
   if (qrBase64) {
     try {
-      // QR code on the right side - smaller
-      doc.addImage(qrBase64, 'PNG', pageWidth - 38, 10, 24, 24);
+      // QR code on the right side - 75% of banner height
+      const qrX = pageWidth - margin - imageSize;
+      doc.addImage(qrBase64, 'PNG', qrX, imageY, imageSize, imageSize);
       // Instagram handle below QR
       doc.setFontSize(5);
       doc.setTextColor(255, 255, 255);
-      doc.text('@jsfashionjewels', pageWidth - 26, 37, { align: 'center' });
+      doc.text('@jsfashionjewels', qrX + imageSize / 2, imageY + imageSize + 5, { align: 'center' });
     } catch (e) {
       console.warn('Could not add QR to PDF');
     }
@@ -188,8 +214,8 @@ export const generateInvoicePDF = (invoice) => {
   const tableData = invoice.items.map(item => [
     item.type,
     item.qty.toString(),
-    `₹${item.value.toLocaleString()}`,
-    `₹${(item.value * item.qty).toLocaleString()}`
+    `Rs.${formatIndianNumber(item.value)}`,
+    `Rs.${formatIndianNumber(item.value * item.qty)}`
   ]);
 
   doc.autoTable({
@@ -238,14 +264,14 @@ export const generateInvoicePDF = (invoice) => {
   doc.setTextColor(...lightText);
   doc.text('Subtotal', totalsX, y);
   doc.setTextColor(...darkText);
-  doc.text(`₹${invoice.subtotal.toLocaleString()}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Rs.${formatIndianNumber(invoice.subtotal)}`, pageWidth - margin, y, { align: 'right' });
 
   // Discount (if applicable)
   if (invoice.discount_percent > 0) {
     y += 7;
     doc.setTextColor(180, 120, 0);
     doc.text(`Discount (${invoice.discount_percent}%)`, totalsX, y);
-    doc.text(`- ₹${invoice.discount_amount.toLocaleString()}`, pageWidth - margin, y, { align: 'right' });
+    doc.text(`- Rs.${formatIndianNumber(invoice.discount_amount)}`, pageWidth - margin, y, { align: 'right' });
   }
 
   // Total line
@@ -260,7 +286,7 @@ export const generateInvoicePDF = (invoice) => {
   doc.setFontSize(14);
   doc.setTextColor(...maroon);
   doc.text('Total', totalsX, y);
-  doc.text(`₹${invoice.total.toLocaleString()}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Rs.${formatIndianNumber(invoice.total)}`, pageWidth - margin, y, { align: 'right' });
 
   // ========== STATUS BADGE ==========
   
