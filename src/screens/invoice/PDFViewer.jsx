@@ -140,17 +140,27 @@ const PDFViewer = () => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 text-gray-500 font-medium">Item</th>
                     <th className="text-center py-2 text-gray-500 font-medium">Qty</th>
+                    <th className="text-center py-2 text-gray-500 font-medium">Disc</th>
                     <th className="text-right py-2 text-gray-500 font-medium">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {currentInvoice.items.map((item, index) => (
-                    <tr key={index} className="border-b border-gray-100">
-                      <td className="py-2">{item.type}</td>
-                      <td className="py-2 text-center">{item.qty}</td>
-                      <td className="py-2 text-right">₹{(item.value * item.qty).toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {currentInvoice.items.map((item, index) => {
+                    const itemTotal = item.value * item.qty;
+                    const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0;
+                    const itemFinal = itemTotal - itemDiscount;
+                    
+                    return (
+                      <tr key={index} className="border-b border-gray-100">
+                        <td className="py-2">{item.type}</td>
+                        <td className="py-2 text-center">{item.qty}</td>
+                        <td className="py-2 text-center text-amber-600">
+                          {item.discount_percent > 0 ? `${item.discount_percent}%` : '-'}
+                        </td>
+                        <td className="py-2 text-right">₹{itemFinal.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -160,9 +170,9 @@ const PDFViewer = () => {
                   <span className="text-gray-500">Subtotal</span>
                   <span>₹{currentInvoice.subtotal.toLocaleString()}</span>
                 </div>
-                {currentInvoice.discount_percent > 0 && (
+                {currentInvoice.discount_amount > 0 && (
                   <div className="flex justify-between text-amber-600">
-                    <span>Discount ({currentInvoice.discount_percent}%)</span>
+                    <span>Total Discount</span>
                     <span>- ₹{currentInvoice.discount_amount.toLocaleString()}</span>
                   </div>
                 )}

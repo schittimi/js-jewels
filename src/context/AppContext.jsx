@@ -31,9 +31,7 @@ export function AppProvider({ children }) {
     customer_name: '',
     customer_phone: '',
     customer_address: '',
-    items: [],
-    discount_percent: 0,
-    discount_enabled: false
+    items: []
   })
 
   // Load invoices from Firestore when user logs in
@@ -222,16 +220,18 @@ export function AppProvider({ children }) {
       customer_name: '',
       customer_phone: '',
       customer_address: '',
-      items: [],
-      discount_percent: 0,
-      discount_enabled: false
+      items: []
     })
   }
 
   const addItemToDraft = (item) => {
     setInvoiceDraft(prev => ({
       ...prev,
-      items: [...prev.items, { ...item, id: `item_${Date.now()}` }]
+      items: [...prev.items, { 
+        ...item, 
+        id: `item_${Date.now()}`,
+        discount_percent: item.discount_percent !== undefined ? item.discount_percent : 10 // Default 10% discount
+      }]
     }))
   }
 
@@ -251,12 +251,23 @@ export function AppProvider({ children }) {
     }))
   }
 
-  // Calculate totals helper
-  const calculateTotals = (items, discountPercent, discountEnabled) => {
+  // Calculate totals helper with item-level discounts
+  const calculateTotals = (items) => {
     const subtotal = items.reduce((sum, item) => sum + (item.value * item.qty), 0)
-    const discountAmount = discountEnabled ? Math.round(subtotal * (discountPercent / 100)) : 0
-    const total = subtotal - discountAmount
-    return { subtotal, discountAmount, total }
+    const totalDiscount = items.reduce((sum, item) => {
+      const itemTotal = item.value * item.qty
+      const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0
+      return sum + itemDiscount
+    }, 0)
+    const total = subtotal - totalDiscount
+    return { subtotal, discountAmount: totalDiscount, total }
+  }
+
+  // Calculate item final price after discount
+  const calculateItemFinal = (item) => {
+    const itemTotal = item.value * item.qty
+    const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0
+    return itemTotal - itemDiscount
   }
 
   // Create invoice (saves to Firestore) - alias for addInvoice for backward compatibility
@@ -291,7 +302,8 @@ export function AppProvider({ children }) {
     addItemToDraft,
     updateItemInDraft,
     removeItemFromDraft,
-    calculateTotals
+    calculateTotals,
+    calculateItemFinal
   }
 
   return (

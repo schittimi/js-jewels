@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, Package } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Package, Percent } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
@@ -9,15 +9,15 @@ import BottomSheet from '../../components/ui/BottomSheet';
 
 const AddItems = () => {
   const navigate = useNavigate();
-  const { invoiceDraft, productTypes, addItemToDraft, updateItemInDraft, removeItemFromDraft, calculateTotals } = useApp();
+  const { invoiceDraft, productTypes, addItemToDraft, updateItemInDraft, removeItemFromDraft, calculateTotals, calculateItemFinal } = useApp();
   
   const [showTypeSheet, setShowTypeSheet] = useState(false);
-  const [currentItem, setCurrentItem] = useState({ type: '', value: '', qty: 1 });
+  const [currentItem, setCurrentItem] = useState({ type: '', value: '', qty: 1, discount_percent: 10 });
   const [editingItemId, setEditingItemId] = useState(null);
   const [errors, setErrors] = useState({});
 
   const items = invoiceDraft.items || [];
-  const { subtotal } = calculateTotals(items, 0, false);
+  const { subtotal, discountAmount, total } = calculateTotals(items);
 
   const handleSelectType = (type) => {
     setCurrentItem(prev => ({ ...prev, type: type.name }));
@@ -39,18 +39,20 @@ const AddItems = () => {
       updateItemInDraft(editingItemId, {
         type: currentItem.type,
         value: Number(currentItem.value),
-        qty: Number(currentItem.qty) || 1
+        qty: Number(currentItem.qty) || 1,
+        discount_percent: Number(currentItem.discount_percent) || 0
       });
       setEditingItemId(null);
     } else {
       addItemToDraft({
         type: currentItem.type,
         value: Number(currentItem.value),
-        qty: Number(currentItem.qty) || 1
+        qty: Number(currentItem.qty) || 1,
+        discount_percent: Number(currentItem.discount_percent) || 0
       });
     }
 
-    setCurrentItem({ type: '', value: '', qty: 1 });
+    setCurrentItem({ type: '', value: '', qty: 1, discount_percent: 10 });
     setErrors({});
   };
 
@@ -58,13 +60,14 @@ const AddItems = () => {
     setCurrentItem({
       type: item.type,
       value: item.value.toString(),
-      qty: item.qty
+      qty: item.qty,
+      discount_percent: item.discount_percent || 0
     });
     setEditingItemId(item.id);
   };
 
   const handleCancelEdit = () => {
-    setCurrentItem({ type: '', value: '', qty: 1 });
+    setCurrentItem({ type: '', value: '', qty: 1, discount_percent: 10 });
     setEditingItemId(null);
     setErrors({});
   };
@@ -120,7 +123,7 @@ const AddItems = () => {
           </div>
 
           {/* Value and Qty */}
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Amount (₹)
@@ -160,6 +163,23 @@ const AddItems = () => {
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-primary-500"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Disc %
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={currentItem.discount_percent}
+                onChange={(e) => setCurrentItem(prev => ({ 
+                  ...prev, 
+                  discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                }))}
+                min="0"
+                max="100"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
           </div>
 
           {/* Buttons */}
@@ -183,40 +203,66 @@ const AddItems = () => {
               Items ({items.length})
             </h3>
             <div className="space-y-2">
-              {items.map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div 
-                      className="flex-1 cursor-pointer"
-                      onClick={() => handleEditItem(item)}
-                    >
-                      <p className="font-medium text-gray-900">{item.type}</p>
-                      <p className="text-sm text-gray-500">
-                        ₹{item.value.toLocaleString()} × {item.qty}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-gray-900">
-                        ₹{(item.value * item.qty).toLocaleString()}
-                      </p>
-                      <button
-                        onClick={() => removeItemFromDraft(item.id)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+              {items.map((item) => {
+                const itemTotal = item.value * item.qty;
+                const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0;
+                const itemFinal = itemTotal - itemDiscount;
+                
+                return (
+                  <Card key={item.id} className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => handleEditItem(item)}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <p className="font-medium text-gray-900">{item.type}</p>
+                        <p className="text-sm text-gray-500">
+                          ₹{item.value.toLocaleString()} × {item.qty}
+                          {item.discount_percent > 0 && (
+                            <span className="text-amber-600 ml-2">(-{item.discount_percent}%)</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          {item.discount_percent > 0 && (
+                            <p className="text-xs text-gray-400 line-through">
+                              ₹{itemTotal.toLocaleString()}
+                            </p>
+                          )}
+                          <p className="font-semibold text-gray-900">
+                            ₹{itemFinal.toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => removeItemFromDraft(item.id)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
 
-            {/* Subtotal */}
-            <div className="mt-4 p-4 bg-gray-100 rounded-xl">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Subtotal</span>
+            {/* Totals */}
+            <div className="mt-4 p-4 bg-gray-100 rounded-xl space-y-2">
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Subtotal</span>
+                <span>₹{subtotal.toLocaleString()}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-amber-600">
+                  <span>Total Discount</span>
+                  <span>- ₹{discountAmount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="font-semibold text-gray-900">Total</span>
                 <span className="text-xl font-bold text-gray-900">
-                  ₹{subtotal.toLocaleString()}
+                  ₹{total.toLocaleString()}
                 </span>
               </div>
             </div>

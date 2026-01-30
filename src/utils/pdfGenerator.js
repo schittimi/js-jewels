@@ -211,16 +211,22 @@ export const generateInvoicePDF = (invoice) => {
   
   y += 10;
 
-  const tableData = invoice.items.map(item => [
-    item.type,
-    item.qty.toString(),
-    `Rs.${formatIndianNumber(item.value)}`,
-    `Rs.${formatIndianNumber(item.value * item.qty)}`
-  ]);
+  const tableData = invoice.items.map(item => {
+    const itemTotal = item.value * item.qty;
+    const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0;
+    const itemFinal = itemTotal - itemDiscount;
+    
+    return [
+      item.type,
+      item.qty.toString(),
+      item.discount_percent > 0 ? `${item.discount_percent}%` : '-',
+      `Rs.${formatIndianNumber(itemFinal)}`
+    ];
+  });
 
   doc.autoTable({
     startY: y,
-    head: [['Item', 'Qty', 'Price', 'Amount']],
+    head: [['Item', 'Qty', 'Disc', 'Amount']],
     body: tableData,
     theme: 'plain',
     styles: {
@@ -238,10 +244,10 @@ export const generateInvoicePDF = (invoice) => {
       halign: 'center', // Center align headers
     },
     columnStyles: {
-      0: { cellWidth: 70, halign: 'left' }, // Item - left aligned
-      1: { cellWidth: 25, halign: 'center' }, // Qty - center
-      2: { cellWidth: 40, halign: 'center' }, // Price - center
-      3: { cellWidth: 40, halign: 'center' }, // Amount - center
+      0: { cellWidth: 65, halign: 'left' }, // Item - left aligned
+      1: { cellWidth: 20, halign: 'center' }, // Qty - center
+      2: { cellWidth: 25, halign: 'center' }, // Disc - center
+      3: { cellWidth: 45, halign: 'center' }, // Amount - center
     },
     margin: { left: margin, right: margin },
     didDrawPage: function(data) {
@@ -266,11 +272,11 @@ export const generateInvoicePDF = (invoice) => {
   doc.setTextColor(...darkText);
   doc.text(`Rs.${formatIndianNumber(invoice.subtotal)}`, pageWidth - margin, y, { align: 'right' });
 
-  // Discount (if applicable)
-  if (invoice.discount_percent > 0) {
+  // Total Discount (if applicable)
+  if (invoice.discount_amount > 0) {
     y += 7;
     doc.setTextColor(180, 120, 0);
-    doc.text(`Discount (${invoice.discount_percent}%)`, totalsX, y);
+    doc.text('Total Discount', totalsX, y);
     doc.text(`- Rs.${formatIndianNumber(invoice.discount_amount)}`, pageWidth - margin, y, { align: 'right' });
   }
 

@@ -42,7 +42,7 @@ const InvoiceDetails = () => {
 
       const shareMessage = `JS Fashion Jewellery
 Invoice: ${invoice.invoice_id}
-Total: ₹${invoice.total.toLocaleString()}${invoice.discount_percent > 0 ? ` (after ${invoice.discount_percent}% discount)` : ''}`;
+Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (includes discount)` : ''}`;
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
@@ -130,9 +130,9 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_percent > 0 ? ` (a
             <p className="text-3xl font-bold text-gray-900">
               ₹{invoice.total.toLocaleString()}
             </p>
-            {invoice.discount_percent > 0 && (
+            {invoice.discount_amount > 0 && (
               <p className="text-sm text-amber-600">
-                {invoice.discount_percent}% discount applied
+                Includes ₹{invoice.discount_amount.toLocaleString()} discount
               </p>
             )}
           </div>
@@ -158,19 +158,35 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_percent > 0 ? ` (a
             Items ({invoice.items.length})
           </h3>
           <div className="space-y-3">
-            {invoice.items.map((item, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium text-gray-900">{item.type}</p>
-                  <p className="text-sm text-gray-500">
-                    ₹{item.value.toLocaleString()} × {item.qty}
-                  </p>
+            {invoice.items.map((item, index) => {
+              const itemTotal = item.value * item.qty;
+              const itemDiscount = item.discount_percent ? Math.round(itemTotal * (item.discount_percent / 100)) : 0;
+              const itemFinal = itemTotal - itemDiscount;
+              
+              return (
+                <div key={index} className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-gray-900">{item.type}</p>
+                    <p className="text-sm text-gray-500">
+                      ₹{item.value.toLocaleString()} × {item.qty}
+                      {item.discount_percent > 0 && (
+                        <span className="text-amber-600 ml-2">(-{item.discount_percent}%)</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {item.discount_percent > 0 && (
+                      <p className="text-xs text-gray-400 line-through">
+                        ₹{itemTotal.toLocaleString()}
+                      </p>
+                    )}
+                    <p className="font-semibold text-gray-900">
+                      ₹{itemFinal.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <p className="font-semibold text-gray-900">
-                  ₹{(item.value * item.qty).toLocaleString()}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 
@@ -182,9 +198,9 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_percent > 0 ? ` (a
               <span>₹{invoice.subtotal.toLocaleString()}</span>
             </div>
             
-            {invoice.discount_percent > 0 && (
+            {invoice.discount_amount > 0 && (
               <div className="flex justify-between text-amber-600">
-                <span>Discount ({invoice.discount_percent}%)</span>
+                <span>Total Discount</span>
                 <span>- ₹{invoice.discount_amount.toLocaleString()}</span>
               </div>
             )}
