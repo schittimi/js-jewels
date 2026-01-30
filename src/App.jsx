@@ -22,6 +22,9 @@ import InvoiceDetails from './screens/history/InvoiceDetails';
 import ProductTypes from './screens/products/ProductTypes';
 import AddEditProductType from './screens/products/AddEditProductType';
 
+// Reports
+import SalesReports from './screens/reports/SalesReports';
+
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -87,6 +90,9 @@ function App() {
         <Route path="/products" element={<ProtectedRoute><ProductTypes /></ProtectedRoute>} />
         <Route path="/products/add" element={<ProtectedRoute><AddEditProductType /></ProtectedRoute>} />
         <Route path="/products/edit/:id" element={<ProtectedRoute><AddEditProductType /></ProtectedRoute>} />
+        
+        {/* Reports */}
+        <Route path="/reports" element={<ProtectedRoute><SalesReports /></ProtectedRoute>} />
         
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

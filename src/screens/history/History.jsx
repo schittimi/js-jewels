@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronRight, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../../components/ui/Header';
 import Card from '../../components/ui/Card';
+import BottomSheet from '../../components/ui/BottomSheet';
+import Button from '../../components/ui/Button';
 
 const History = () => {
   const navigate = useNavigate();
-  const { invoices } = useApp();
+  const { invoices, deleteInvoice } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter and search invoices
   const filteredInvoices = invoices.filter(invoice => {
@@ -40,7 +44,7 @@ const History = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header title="Invoice History" showBack />
+      <Header title="Invoice History" showBack showHome />
 
       {/* Search and Filter */}
       <div className="px-4 py-3 bg-white border-b border-gray-100">
@@ -90,12 +94,13 @@ const History = () => {
                 {dateInvoices.map((invoice) => (
                   <Card
                     key={invoice.id}
-                    hoverable
-                    onClick={() => navigate(`/history/${invoice.id}`)}
                     className="p-4"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => navigate(`/history/${invoice.id}`)}
+                      >
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-gray-900">
                             {invoice.customer_name || invoice.customer_phone}
@@ -118,17 +123,28 @@ const History = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="text-right">
+                        <div 
+                          className="text-right cursor-pointer"
+                          onClick={() => navigate(`/history/${invoice.id}`)}
+                        >
                           <p className="font-semibold text-gray-900">
                             ₹{invoice.total.toLocaleString()}
                           </p>
-                          {invoice.discount_percent > 0 && (
+                          {invoice.discount_amount > 0 && (
                             <p className="text-xs text-amber-600">
-                              -{invoice.discount_percent}%
+                              -₹{invoice.discount_amount.toLocaleString()}
                             </p>
                           )}
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInvoiceToDelete(invoice);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </Card>
@@ -138,6 +154,53 @@ const History = () => {
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Sheet */}
+      <BottomSheet
+        isOpen={!!invoiceToDelete}
+        onClose={() => setInvoiceToDelete(null)}
+        title="Delete Invoice"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete invoice{' '}
+            <span className="font-semibold text-gray-900">{invoiceToDelete?.invoice_id}</span>?
+          </p>
+          <p className="text-sm text-gray-500">
+            This action cannot be undone.
+          </p>
+          
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="secondary" 
+              onClick={() => setInvoiceToDelete(null)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!invoiceToDelete) return;
+                setIsDeleting(true);
+                try {
+                  await deleteInvoice(invoiceToDelete.id);
+                  setInvoiceToDelete(null);
+                } catch (error) {
+                  console.error('Error deleting invoice:', error);
+                  alert('Failed to delete invoice');
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              loading={isDeleting}
+              className="flex-1 !bg-red-600 hover:!bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 };

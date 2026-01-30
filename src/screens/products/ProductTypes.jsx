@@ -31,6 +31,7 @@ const ProductTypes = () => {
       <Header 
         title="Product Types" 
         showBack
+        showHome
         rightAction={
           <button
             onClick={() => navigate('/products/add')}

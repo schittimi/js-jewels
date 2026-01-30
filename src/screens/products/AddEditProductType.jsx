@@ -59,7 +59,8 @@ const AddEditProductType = () => {
     <div className="min-h-screen bg-white flex flex-col">
       <Header 
         title={isEditing ? 'Edit Product Type' : 'Add Product Type'} 
-        showBack 
+        showBack
+        showHome
       />
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">

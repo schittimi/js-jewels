@@ -137,6 +137,15 @@ export function AppProvider({ children }) {
         ...updates,
         updated_at: Date.now()
       })
+      
+      // Also update currentInvoice if it's the same invoice
+      if (currentInvoice && currentInvoice.id === invoiceId) {
+        setCurrentInvoice(prev => ({
+          ...prev,
+          ...updates,
+          updated_at: Date.now()
+        }))
+      }
     } catch (error) {
       console.error('Error updating invoice:', error)
       throw error
@@ -146,6 +155,20 @@ export function AppProvider({ children }) {
   // Update invoice status
   const updateInvoiceStatus = async (invoiceId, status) => {
     await updateInvoice(invoiceId, { status })
+  }
+
+  // Delete invoice from Firestore
+  const deleteInvoice = async (invoiceId) => {
+    if (!user) return
+
+    try {
+      const { deleteDoc } = await import('firebase/firestore')
+      const invoiceRef = doc(db, 'invoices', invoiceId)
+      await deleteDoc(invoiceRef)
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      throw error
+    }
   }
 
   // Add product type to Firestore
@@ -290,6 +313,7 @@ export function AppProvider({ children }) {
     createInvoice,  // alias for backward compatibility
     updateInvoice,
     updateInvoiceStatus,
+    deleteInvoice,
     addProductType,
     updateProductType,
     deleteProductType,

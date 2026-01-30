@@ -202,6 +202,7 @@ Please let us know once payment is done. Thank you! 🙏`;
       <Header 
         title="Share Invoice" 
         showBack
+        showHome
         onBack={() => navigate('/invoice/pdf')}
       />
 

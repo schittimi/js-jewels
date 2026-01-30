@@ -5,25 +5,78 @@ import 'jspdf-autotable';
 let logoBase64 = null;
 let qrBase64 = null;
 
+// Try to load from localStorage cache first
+const initFromCache = () => {
+  try {
+    const cachedLogo = localStorage.getItem('pdf_logo_base64');
+    const cachedQR = localStorage.getItem('pdf_qr_base64');
+    if (cachedLogo) logoBase64 = cachedLogo;
+    if (cachedQR) qrBase64 = cachedQR;
+  } catch (e) {
+    console.warn('Could not load from cache:', e);
+  }
+};
+
+// Initialize from cache on module load
+initFromCache();
+
 // Preload images
 const loadImages = async () => {
-  if (!logoBase64) {
-    try {
-      const logoResponse = await fetch('/logo.png');
-      const logoBlob = await logoResponse.blob();
-      logoBase64 = await blobToBase64(logoBlob);
-    } catch (e) {
-      console.warn('Could not load logo');
-    }
+  // If both already loaded from cache, skip
+  if (logoBase64 && qrBase64) {
+    console.log('Images already loaded from cache');
+    return;
   }
+  
+  const loadPromises = [];
+  
+  // Load logo if not cached
+  if (!logoBase64) {
+    loadPromises.push(
+      (async () => {
+        try {
+          const logoResponse = await fetch('/logo.png', { cache: 'no-cache' });
+          if (logoResponse.ok) {
+            const logoBlob = await logoResponse.blob();
+            logoBase64 = await blobToBase64(logoBlob);
+            // Cache in localStorage
+            try {
+              localStorage.setItem('pdf_logo_base64', logoBase64);
+            } catch (e) {}
+            console.log('Logo loaded and cached successfully');
+          }
+        } catch (e) {
+          console.warn('Could not load logo:', e);
+        }
+      })()
+    );
+  }
+  
+  // Load QR code if not cached
   if (!qrBase64) {
-    try {
-      const qrResponse = await fetch('/instagram-qr.png');
-      const qrBlob = await qrResponse.blob();
-      qrBase64 = await blobToBase64(qrBlob);
-    } catch (e) {
-      console.warn('Could not load QR code');
-    }
+    loadPromises.push(
+      (async () => {
+        try {
+          const qrResponse = await fetch('/instagram-qr.png', { cache: 'no-cache' });
+          if (qrResponse.ok) {
+            const qrBlob = await qrResponse.blob();
+            qrBase64 = await blobToBase64(qrBlob);
+            // Cache in localStorage
+            try {
+              localStorage.setItem('pdf_qr_base64', qrBase64);
+            } catch (e) {}
+            console.log('QR code loaded and cached successfully');
+          }
+        } catch (e) {
+          console.warn('Could not load QR code:', e);
+        }
+      })()
+    );
+  }
+  
+  // Wait for images to load
+  if (loadPromises.length > 0) {
+    await Promise.all(loadPromises);
   }
 };
 
@@ -94,6 +147,8 @@ export const generateInvoicePDF = (invoice) => {
   const imageSize = bannerHeight * 0.75; // 37.5mm
   const imageY = (bannerHeight - imageSize) / 2; // Center vertically
   
+  console.log('PDF Generation - Logo available:', !!logoBase64, 'QR available:', !!qrBase64);
+  
   if (logoBase64) {
     try {
       // Draw white circle background for logo
@@ -101,8 +156,9 @@ export const generateInvoicePDF = (invoice) => {
       doc.circle(margin + imageSize / 2, imageY + imageSize / 2, imageSize / 2, 'F');
       // Circular logo on the left - 75% of banner height
       doc.addImage(logoBase64, 'PNG', margin, imageY, imageSize, imageSize);
+      console.log('Logo added to PDF successfully');
     } catch (e) {
-      console.warn('Could not add logo to PDF');
+      console.warn('Could not add logo to PDF:', e);
     }
   }
 
@@ -138,12 +194,17 @@ export const generateInvoicePDF = (invoice) => {
       // QR code on the right side - 75% of banner height
       const qrX = pageWidth - margin - imageSize;
       doc.addImage(qrBase64, 'PNG', qrX, imageY, imageSize, imageSize);
+      
+      // Add clickable link on the QR code area
+      doc.link(qrX, imageY, imageSize, imageSize + 8, { url: 'https://www.instagram.com/jsfashionjewels' });
+      
       // Instagram handle below QR
       doc.setFontSize(5);
       doc.setTextColor(255, 255, 255);
       doc.text('@jsfashionjewels', qrX + imageSize / 2, imageY + imageSize + 5, { align: 'center' });
+      console.log('QR code added to PDF successfully');
     } catch (e) {
-      console.warn('Could not add QR to PDF');
+      console.warn('Could not add QR to PDF:', e);
     }
   }
 

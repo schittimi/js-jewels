@@ -59,11 +59,10 @@ const Dashboard = () => {
     },
     {
       icon: BarChart3,
-      label: 'Reports',
-      description: 'Coming soon',
+      label: 'Sales Reports',
+      description: 'View sales analytics',
       color: 'bg-purple-500',
-      onClick: () => {},
-      disabled: true
+      onClick: () => navigate('/reports')
     }
   ];
 

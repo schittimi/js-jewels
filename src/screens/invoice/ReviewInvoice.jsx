@@ -44,7 +44,7 @@ const ReviewInvoice = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header title="Review Invoice" showBack />
+      <Header title="Review Invoice" showBack showHome />
 
       <div className="flex-1 px-4 py-4 overflow-y-auto">
         {/* Progress indicator */}

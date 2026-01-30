@@ -20,12 +20,15 @@ const PDFViewer = () => {
 
   const generatePreview = async () => {
     try {
-      // Preload logo and QR images first
+      // Preload logo and QR images first - wait for completion
+      console.log('Loading PDF assets...');
       await preloadPDFAssets();
+      console.log('Assets loaded, generating PDF...');
       const pdf = generateInvoicePDF(currentInvoice);
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
+      console.log('PDF preview generated');
     } catch (error) {
       console.error('Error generating PDF:', error);
     } finally {
@@ -35,9 +38,13 @@ const PDFViewer = () => {
 
   const handleDownload = async () => {
     if (!currentInvoice) return;
+    // Preload images before generating - ensure they're loaded
+    console.log('Download: Loading PDF assets...');
     await preloadPDFAssets();
+    console.log('Download: Assets loaded, generating PDF...');
     const pdf = generateInvoicePDF(currentInvoice);
     pdf.save(`${currentInvoice.invoice_id}.pdf`);
+    console.log('Download: PDF saved');
   };
 
   const handleShare = () => {
@@ -54,6 +61,7 @@ const PDFViewer = () => {
       <Header 
         title="Invoice Preview" 
         showBack
+        showHome
         onBack={() => navigate('/dashboard')}
         rightAction={
           <button

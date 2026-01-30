@@ -10,11 +10,20 @@ const PaymentStatus = () => {
   const navigate = useNavigate();
   const { currentInvoice, updateInvoice } = useApp();
   const [status, setStatus] = useState(currentInvoice?.status || 'pending');
+  const [updating, setUpdating] = useState(false);
 
-  const handleStatusChange = (newStatus) => {
+  const handleStatusChange = async (newStatus) => {
+    if (updating) return;
     setStatus(newStatus);
     if (currentInvoice) {
-      updateInvoice(currentInvoice.id, { status: newStatus });
+      setUpdating(true);
+      try {
+        await updateInvoice(currentInvoice.id, { status: newStatus });
+      } catch (error) {
+        console.error('Error updating status:', error);
+      } finally {
+        setUpdating(false);
+      }
     }
   };
 
@@ -31,7 +40,8 @@ const PaymentStatus = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header 
         title="Payment Status" 
-        showBack 
+        showBack
+        showHome
         onBack={() => navigate('/dashboard')}
       />
 
@@ -54,7 +64,7 @@ const PaymentStatus = () => {
           Mark Payment Status
         </h3>
 
-        <div className="space-y-3">
+        <div className={`space-y-3 ${updating ? 'opacity-60 pointer-events-none' : ''}`}>
           {/* Paid Option */}
           <Card
             hoverable

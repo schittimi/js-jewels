@@ -53,7 +53,7 @@ const CustomerInfo = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header title="Customer Details" showBack />
+      <Header title="Customer Details" showBack showHome />
 
       <div className="flex-1 px-4 py-6">
         {/* Progress indicator */}

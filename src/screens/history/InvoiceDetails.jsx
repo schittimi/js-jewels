@@ -11,10 +11,12 @@ import { generateInvoicePDF } from '../../utils/pdfGenerator';
 const InvoiceDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { getInvoice, updateInvoice, setCurrentInvoice, invoices } = useApp();
+  const { getInvoice, updateInvoice, deleteInvoice, setCurrentInvoice, invoices } = useApp();
   
   const [invoice, setInvoice] = useState(null);
   const [showStatusSheet, setShowStatusSheet] = useState(false);
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const inv = getInvoice(id);
@@ -82,13 +84,22 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (in
       <Header 
         title="Invoice Details" 
         showBack
+        showHome
         rightAction={
-          <button
-            onClick={handleDownload}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <Download className="w-5 h-5 text-gray-700" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowDeleteSheet(true)}
+              className="p-2 rounded-full hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-5 h-5 text-red-500" />
+            </button>
+            <button
+              onClick={handleDownload}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <Download className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
         }
       />
 
@@ -269,6 +280,51 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (in
               <p className="text-sm text-gray-500">Payment due</p>
             </div>
           </button>
+        </div>
+      </BottomSheet>
+
+      {/* Delete Confirmation Sheet */}
+      <BottomSheet
+        isOpen={showDeleteSheet}
+        onClose={() => setShowDeleteSheet(false)}
+        title="Delete Invoice"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete invoice{' '}
+            <span className="font-semibold text-gray-900">{invoice?.invoice_id}</span>?
+          </p>
+          <p className="text-sm text-gray-500">
+            This action cannot be undone.
+          </p>
+          
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowDeleteSheet(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  await deleteInvoice(id);
+                  navigate('/history');
+                } catch (error) {
+                  console.error('Error deleting invoice:', error);
+                  alert('Failed to delete invoice');
+                  setIsDeleting(false);
+                }
+              }}
+              loading={isDeleting}
+              className="flex-1 !bg-red-600 hover:!bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </div>
         </div>
       </BottomSheet>
     </div>
