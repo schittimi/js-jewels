@@ -9,23 +9,6 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { generateInvoicePDF, preloadPDFAssets } from '../../utils/pdfGenerator';
 
-// Function to shorten URL using is.gd API
-const shortenUrl = async (longUrl) => {
-  try {
-    const response = await fetch(
-      `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`
-    );
-    const data = await response.json();
-    if (data.shorturl) {
-      return data.shorturl;
-    }
-    return longUrl; // Fallback to original URL
-  } catch (error) {
-    console.error('URL shortening failed:', error);
-    return longUrl; // Fallback to original URL
-  }
-};
-
 const ShareInvoice = () => {
   const navigate = useNavigate();
   const { currentInvoice, resetDraft } = useApp();
@@ -74,11 +57,8 @@ View attached invoice ↓`;
       // Get the public download URL
       const downloadURL = await getDownloadURL(storageRef);
       
-      // Shorten the URL
-      const shortUrl = await shortenUrl(downloadURL);
-      
-      // Create message with short PDF link
-      const messageWithLink = `${shareMessage}\n\n📄 View/Download Invoice:\n${shortUrl}`;
+      // Create message with PDF link
+      const messageWithLink = `${shareMessage}\n\n📄 View/Download Invoice:\n${downloadURL}`;
       const encodedMessage = encodeURIComponent(messageWithLink);
       
       // Open WhatsApp with the message containing the PDF link
@@ -119,11 +99,8 @@ View attached invoice ↓`;
       // Get the public download URL
       const downloadURL = await getDownloadURL(storageRef);
       
-      // Shorten the URL
-      const shortUrl = await shortenUrl(downloadURL);
-      
       const subject = encodeURIComponent(`Invoice ${currentInvoice.invoice_id} - JS Fashion Jewellery`);
-      const bodyWithLink = `${shareMessage}\n\nView/Download Invoice: ${shortUrl}`;
+      const bodyWithLink = `${shareMessage}\n\nView/Download Invoice: ${downloadURL}`;
       const body = encodeURIComponent(bodyWithLink);
       window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
       setShared('email');
