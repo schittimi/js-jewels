@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Share2, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { Download, Share2, CheckCircle, Clock, Trash2, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import BottomSheet from '../../components/ui/BottomSheet';
 import { generateInvoicePDF } from '../../utils/pdfGenerator';
+
+// Get storage bucket from environment or construct from project ID
+const STORAGE_BUCKET = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 
+  `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`;
+
+// Generate direct public URL (works with public storage rules)
+const getDirectPdfUrl = (invoiceId) => {
+  const encodedPath = encodeURIComponent(`invoices/${invoiceId}.pdf`);
+  return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodedPath}?alt=media`;
+};
 
 const InvoiceDetails = () => {
   const navigate = useNavigate();
@@ -34,34 +44,38 @@ const InvoiceDetails = () => {
     pdf.save(`${invoice.invoice_id}.pdf`);
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!invoice) return;
     
-    try {
-      const pdf = generateInvoicePDF(invoice);
-      const blob = pdf.output('blob');
-      const file = new File([blob], `${invoice.invoice_id}.pdf`, { type: 'application/pdf' });
+    // Format phone number
+    let phone = invoice.customer_phone.replace(/\D/g, '');
+    if (phone.length === 10) {
+      phone = '91' + phone;
+    }
+    
+    // Check if PDF was uploaded previously
+    if (invoice.pdfUploaded) {
+      // Use the pre-formed URL directly
+      const pdfUrl = getDirectPdfUrl(invoice.invoice_id);
+      
+      const shareMessage = `JS Fashion Jewellery
+Invoice: ${invoice.invoice_id}
+Total: ₹${invoice.total.toLocaleString()}${invoice.discount_percent > 0 ? ` (after ${invoice.discount_percent}% discount)` : ''}
+View attached invoice ↓
 
+📄 View/Download Invoice:
+${pdfUrl}`;
+      
+      const encodedMessage = encodeURIComponent(shareMessage);
+      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    } else {
+      // PDF was never uploaded, share without link
       const shareMessage = `JS Fashion Jewellery
 Invoice: ${invoice.invoice_id}
 Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (includes discount)` : ''}`;
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Invoice ${invoice.invoice_id}`,
-          text: shareMessage
-        });
-      } else {
-        pdf.save(`${invoice.invoice_id}.pdf`);
-        const phone = invoice.customer_phone;
-        const encodedMessage = encodeURIComponent(shareMessage);
-        window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Error sharing:', error);
-      }
+      
+      const encodedMessage = encodeURIComponent(shareMessage);
+      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
     }
   };
 
@@ -232,8 +246,12 @@ Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (in
             Download
           </Button>
           <Button onClick={handleShare} className="flex-1">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
+            {invoice.pdfUploaded ? (
+              <MessageCircle className="w-4 h-4 mr-2" />
+            ) : (
+              <Share2 className="w-4 h-4 mr-2" />
+            )}
+            {invoice.pdfUploaded ? 'WhatsApp' : 'Share'}
           </Button>
         </div>
       </div>

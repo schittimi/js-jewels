@@ -21,7 +21,7 @@ const getDirectPdfUrl = (invoiceId) => {
 
 const ShareInvoice = () => {
   const navigate = useNavigate();
-  const { currentInvoice, resetDraft } = useApp();
+  const { currentInvoice, resetDraft, updateInvoice } = useApp();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -57,6 +57,9 @@ View attached invoice ↓`;
           customerName: currentInvoice.customer_name || ''
         }
       });
+      
+      // Mark invoice as having PDF uploaded
+      await updateInvoice(currentInvoice.id, { pdfUploaded: true });
       
       setUploadStatus('success');
       

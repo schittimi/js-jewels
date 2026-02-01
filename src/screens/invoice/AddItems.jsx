@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, Package, Percent } from 'lucide-react';
+import { Plus, Minus, Trash2, ChevronDown, Package, Percent } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
@@ -123,7 +123,7 @@ const AddItems = () => {
           </div>
 
           {/* Value and Qty */}
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Amount (₹)
@@ -149,37 +149,53 @@ const AddItems = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Qty
+                Quantity
               </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={currentItem.qty}
-                onChange={(e) => setCurrentItem(prev => ({ 
-                  ...prev, 
-                  qty: Math.max(1, parseInt(e.target.value) || 1)
-                }))}
-                min="1"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-primary-500"
-              />
+              <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setCurrentItem(prev => ({ 
+                    ...prev, 
+                    qty: Math.max(1, prev.qty - 1)
+                  }))}
+                  className="px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-r border-gray-300"
+                >
+                  <Minus className="w-4 h-4 text-gray-600" />
+                </button>
+                <span className="flex-1 text-center font-semibold text-gray-900 py-3">
+                  {currentItem.qty}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentItem(prev => ({ 
+                    ...prev, 
+                    qty: prev.qty + 1
+                  }))}
+                  className="px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-l border-gray-300"
+                >
+                  <Plus className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Disc %
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={currentItem.discount_percent}
-                onChange={(e) => setCurrentItem(prev => ({ 
-                  ...prev, 
-                  discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
-                }))}
-                min="0"
-                max="100"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
+          </div>
+
+          {/* Discount */}
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Discount %
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={currentItem.discount_percent}
+              onChange={(e) => setCurrentItem(prev => ({ 
+                ...prev, 
+                discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+              }))}
+              min="0"
+              max="100"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+            />
           </div>
 
           {/* Buttons */}
