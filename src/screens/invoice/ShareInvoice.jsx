@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Mail, Link2, Bell, Check, Home, Loader2 } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { MessageCircle, Mail, Link2, Bell, Check, Home, Loader2, Upload, CheckCircle, XCircle } from 'lucide-react';
+import { ref, uploadBytes } from 'firebase/storage';
 import { useApp } from '../../context/AppContext';
 import { storage } from '../../config/firebase';
 import Header from '../../components/ui/Header';
@@ -9,68 +9,95 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { generateInvoicePDF, preloadPDFAssets } from '../../utils/pdfGenerator';
 
+// Get storage bucket from environment or construct from project ID
+const STORAGE_BUCKET = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 
+  `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`;
+
+// Generate direct public URL (works with public storage rules)
+const getDirectPdfUrl = (invoiceId) => {
+  const encodedPath = encodeURIComponent(`invoices/${invoiceId}.pdf`);
+  return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodedPath}?alt=media`;
+};
+
 const ShareInvoice = () => {
   const navigate = useNavigate();
   const { currentInvoice, resetDraft } = useApp();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Background upload state
+  const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | 'success' | 'error'
 
   if (!currentInvoice) {
     navigate('/dashboard');
     return null;
   }
 
+  // Pre-formed direct URL - works immediately after upload completes
+  const pdfUrl = getDirectPdfUrl(currentInvoice.invoice_id);
+
   const shareMessage = `JS Fashion Jewellery
 Invoice: ${currentInvoice.invoice_id}
 Total: ₹${currentInvoice.total.toLocaleString()}${currentInvoice.discount_percent > 0 ? ` (after ${currentInvoice.discount_percent}% discount)` : ''}
 View attached invoice ↓`;
 
+  // Background upload function (non-blocking)
+  const uploadInBackground = async (blob) => {
+    setUploadStatus('uploading');
+    
+    try {
+      const fileName = `invoices/${currentInvoice.invoice_id}.pdf`;
+      const storageRef = ref(storage, fileName);
+      
+      await uploadBytes(storageRef, blob, {
+        contentType: 'application/pdf',
+        customMetadata: {
+          invoiceId: currentInvoice.invoice_id,
+          customerName: currentInvoice.customer_name || ''
+        }
+      });
+      
+      setUploadStatus('success');
+      
+      // Auto-hide success after 5 seconds
+      setTimeout(() => setUploadStatus(null), 5000);
+    } catch (error) {
+      console.error('Background upload failed:', error);
+      setUploadStatus('error');
+    }
+  };
+
   const handleWhatsAppShare = async () => {
     try {
       setUploading(true);
       
-      // Preload images and generate PDF
+      // Generate PDF
       await preloadPDFAssets();
       const pdf = generateInvoicePDF(currentInvoice);
       const blob = pdf.output('blob');
 
-      // Format phone number - remove any non-digits and ensure country code
+      // Format phone number
       let phone = currentInvoice.customer_phone.replace(/\D/g, '');
       if (phone.length === 10) {
         phone = '91' + phone;
       }
 
-      // Upload PDF to Firebase Storage
-      const fileName = `invoices/${currentInvoice.invoice_id}.pdf`;
-      const storageRef = ref(storage, fileName);
-      
-      // Upload with public read metadata
-      await uploadBytes(storageRef, blob, {
-        contentType: 'application/pdf',
-        customMetadata: {
-          invoiceId: currentInvoice.invoice_id,
-          customerName: currentInvoice.customer_name
-        }
-      });
-      
-      // Get the public download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      // Create message with PDF link
-      const messageWithLink = `${shareMessage}\n\n📄 View/Download Invoice:\n${downloadURL}`;
+      // Create message with pre-formed PDF link (works after upload completes)
+      const messageWithLink = `${shareMessage}\n\n📄 View/Download Invoice:\n${pdfUrl}`;
       const encodedMessage = encodeURIComponent(messageWithLink);
       
-      // Open WhatsApp with the message containing the PDF link
+      // Open WhatsApp IMMEDIATELY with pre-formed URL
       window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
       
+      // Start background upload (non-blocking)
+      uploadInBackground(blob);
+      
       setShared('whatsapp');
+      setUploading(false);
     } catch (error) {
       console.error('Error sharing:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      alert(`Could not upload invoice: ${error.code || error.message}`);
-    } finally {
+      alert(`Could not generate invoice: ${error.message}`);
       setUploading(false);
     }
   };
@@ -79,42 +106,33 @@ View attached invoice ↓`;
     try {
       setUploading(true);
       
-      // Preload images and generate PDF
+      // Generate PDF
       await preloadPDFAssets();
       const pdf = generateInvoicePDF(currentInvoice);
       const blob = pdf.output('blob');
       
-      // Upload PDF to Firebase Storage
-      const fileName = `invoices/${currentInvoice.invoice_id}.pdf`;
-      const storageRef = ref(storage, fileName);
-      
-      await uploadBytes(storageRef, blob, {
-        contentType: 'application/pdf',
-        customMetadata: {
-          invoiceId: currentInvoice.invoice_id,
-          customerName: currentInvoice.customer_name
-        }
-      });
-      
-      // Get the public download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      
       const subject = encodeURIComponent(`Invoice ${currentInvoice.invoice_id} - JS Fashion Jewellery`);
-      const bodyWithLink = `${shareMessage}\n\nView/Download Invoice: ${downloadURL}`;
-      const body = encodeURIComponent(bodyWithLink);
-      window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+      const bodyWithLink = `${shareMessage}\n\nView/Download Invoice: ${pdfUrl}`;
+      
+      // Open email IMMEDIATELY
+      window.open(`mailto:?subject=${subject}&body=${encodeURIComponent(bodyWithLink)}`, '_blank');
+      
+      // Start background upload (non-blocking)
+      uploadInBackground(blob);
+      
       setShared('email');
+      setUploading(false);
     } catch (error) {
       console.error('Error sharing via email:', error);
-      alert('Could not upload invoice. Please try again.');
-    } finally {
+      alert('Could not generate invoice. Please try again.');
       setUploading(false);
     }
   };
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareMessage);
+      const messageWithLink = `${shareMessage}\n\n📄 View/Download Invoice:\n${pdfUrl}`;
+      await navigator.clipboard.writeText(messageWithLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -123,16 +141,16 @@ View attached invoice ↓`;
   };
 
   const handleReminder = () => {
-    // Format phone number
     let phone = currentInvoice.customer_phone.replace(/\D/g, '');
     if (phone.length === 10) {
       phone = '91' + phone;
     }
     
-    // Open WhatsApp with reminder message
     const reminderMessage = `Hi! This is a friendly reminder for your pending payment.
 
 ${shareMessage}
+
+📄 View Invoice: ${pdfUrl}
 
 Please let us know once payment is done. Thank you! 🙏`;
     
@@ -147,7 +165,7 @@ Please let us know once payment is done. Thank you! 🙏`;
 
   const shareOptions = [
     {
-      icon: uploading ? Loader2 : MessageCircle,
+      icon: MessageCircle,
       label: 'WhatsApp',
       description: 'Share invoice link',
       color: 'bg-green-500',
@@ -156,7 +174,7 @@ Please let us know once payment is done. Thank you! 🙏`;
       disabled: uploading
     },
     {
-      icon: uploading ? Loader2 : Mail,
+      icon: Mail,
       label: 'Email',
       description: 'Send via email',
       color: 'bg-blue-500',
@@ -167,7 +185,7 @@ Please let us know once payment is done. Thank you! 🙏`;
     {
       icon: Link2,
       label: copied ? 'Copied!' : 'Copy Message',
-      description: 'Copy invoice details',
+      description: 'Copy invoice details with link',
       color: 'bg-gray-500',
       onClick: handleCopyLink,
       shared: copied
@@ -229,6 +247,50 @@ Please let us know once payment is done. Thank you! 🙏`;
             </Card>
           ))}
         </div>
+
+        {/* Background Upload Status */}
+        {uploadStatus && (
+          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
+            uploadStatus === 'uploading' ? 'bg-blue-50 border border-blue-200' :
+            uploadStatus === 'success' ? 'bg-green-50 border border-green-200' :
+            'bg-red-50 border border-red-200'
+          }`}>
+            {uploadStatus === 'uploading' && (
+              <>
+                <Upload className="w-5 h-5 text-blue-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-700">Uploading PDF in background...</p>
+                  <p className="text-xs text-blue-500">Link will work once upload completes</p>
+                </div>
+                <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+              </>
+            )}
+            {uploadStatus === 'success' && (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-700">PDF uploaded successfully!</p>
+                  <p className="text-xs text-green-500">Customer can now view the invoice</p>
+                </div>
+              </>
+            )}
+            {uploadStatus === 'error' && (
+              <>
+                <XCircle className="w-5 h-5 text-red-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-700">Upload failed</p>
+                  <p className="text-xs text-red-500">Try sharing again</p>
+                </div>
+                <button
+                  onClick={() => setUploadStatus(null)}
+                  className="px-3 py-1.5 bg-red-100 text-red-600 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Reminder Option - Only for pending invoices */}
         {currentInvoice.status === 'pending' && (
