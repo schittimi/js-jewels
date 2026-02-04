@@ -196,12 +196,13 @@ export const generateInvoicePDF = (invoice) => {
       doc.addImage(qrBase64, 'PNG', qrX, imageY, imageSize, imageSize);
       
       // Add clickable link on the QR code area
-      doc.link(qrX, imageY, imageSize, imageSize + 8, { url: 'https://www.instagram.com/jsfashionjewels' });
+      doc.link(qrX, imageY, imageSize, imageSize + 10, { url: 'https://www.instagram.com/jsfashionjewels' });
       
-      // Instagram handle below QR
-      doc.setFontSize(5);
-      doc.setTextColor(255, 255, 255);
-      doc.text('@jsfashionjewels', qrX + imageSize / 2, imageY + imageSize + 5, { align: 'center' });
+      // Instagram handle below QR - eye-catching call to action with symbols
+      doc.setFontSize(12);
+      doc.setTextColor(...gold);
+      doc.setFont('helvetica', 'bold');
+      doc.text('* TAP HERE *', qrX + imageSize / 2, imageY + imageSize + 5, { align: 'center' });
       console.log('QR code added to PDF successfully');
     } catch (e) {
       console.warn('Could not add QR to PDF:', e);
@@ -387,13 +388,13 @@ export const generateInvoicePDF = (invoice) => {
 
   // Thank you message
   doc.setFont('times', 'italic');
-  doc.setFontSize(10);
+  doc.setFontSize(18);
   doc.setTextColor(...maroon);
   doc.text('Thank you for your business!', pageWidth / 2, footerY + 3, { align: 'center' });
 
   // Shop details with contact info
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(15);
   doc.setTextColor(...lightText);
   doc.text('JS Fashion Jewellery  |  +91 84315 63827  |  @jsfashionjewels', pageWidth / 2, footerY + 10, { align: 'center' });
 
