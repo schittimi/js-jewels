@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, MapPin } from 'lucide-react';
+import { User, Phone, MapPin, Contact } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../../components/ui/Header';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+
+// Contact Picker API is only available on Android Chrome/Edge (secure context).
+// Not supported on iOS Safari or desktop browsers - manual entry is the fallback everywhere.
+const isContactPickerSupported = () =>
+  typeof navigator !== 'undefined' && 'contacts' in navigator && 'ContactsManager' in window;
 
 const CustomerInfo = () => {
   const navigate = useNavigate();
@@ -16,6 +21,8 @@ const CustomerInfo = () => {
     customer_address: invoiceDraft.customer_address || ''
   });
   const [errors, setErrors] = useState({});
+  const [contactPickerSupported] = useState(isContactPickerSupported);
+  const [pickingContact, setPickingContact] = useState(false);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -49,6 +56,34 @@ const CustomerInfo = () => {
     });
 
     navigate('/invoice/items');
+  };
+
+  const handlePickContact = async () => {
+    try {
+      setPickingContact(true);
+      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!contacts.length) return;
+
+      const contact = contacts[0];
+      const rawPhone = contact.tel?.[0] || '';
+      // Keep only the last 10 digits in case the contact has a country code prefix
+      const cleanPhone = rawPhone.replace(/\D/g, '').slice(-10);
+      const name = contact.name?.[0] || '';
+
+      setFormData(prev => ({
+        ...prev,
+        customer_phone: cleanPhone || prev.customer_phone,
+        customer_name: prev.customer_name || name
+      }));
+      if (errors.customer_phone) {
+        setErrors(prev => ({ ...prev, customer_phone: '' }));
+      }
+    } catch (error) {
+      // User cancelled the picker or permission was denied - safe to ignore
+      console.warn('Contact picker cancelled or failed:', error);
+    } finally {
+      setPickingContact(false);
+    }
   };
 
   return (
@@ -85,9 +120,22 @@ const CustomerInfo = () => {
 
           {/* Phone Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              {contactPickerSupported && (
+                <button
+                  type="button"
+                  onClick={handlePickContact}
+                  disabled={pickingContact}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                >
+                  <Contact className="w-4 h-4" />
+                  {pickingContact ? 'Opening...' : 'Pick from Contacts'}
+                </button>
+              )}
+            </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Phone className="w-5 h-5 text-gray-400" />
