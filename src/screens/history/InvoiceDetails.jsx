@@ -67,7 +67,7 @@ View attached invoice ↓
 ${pdfUrl}`;
       
       const encodedMessage = encodeURIComponent(shareMessage);
-      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
     } else {
       // PDF was never uploaded, share without link
       const shareMessage = `JS Fashion Jewellery
@@ -75,7 +75,7 @@ Invoice: ${invoice.invoice_id}
 Total: ₹${invoice.total.toLocaleString()}${invoice.discount_amount > 0 ? ` (includes discount)` : ''}`;
       
       const encodedMessage = encodeURIComponent(shareMessage);
-      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
     }
   };
 

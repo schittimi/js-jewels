@@ -91,7 +91,7 @@ View attached invoice ↓`;
       const encodedMessage = encodeURIComponent(messageWithLink);
       
       // Open WhatsApp IMMEDIATELY with pre-formed URL
-      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
       
       // Start background upload (non-blocking)
       uploadInBackground(blob);
@@ -158,7 +158,7 @@ ${shareMessage}
 Please let us know once payment is done. Thank you! 🙏`;
     
     const encodedMessage = encodeURIComponent(reminderMessage);
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
   };
 
   const handleDone = () => {
